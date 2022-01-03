@@ -1,4 +1,4 @@
-package com.kcap.kakaoclassaccountprogram;
+package com.kcap.kakaoclassaccountprogram.testfile;
 
 import org.assertj.core.api.Assertions;
 import org.hamcrest.CoreMatchers;
