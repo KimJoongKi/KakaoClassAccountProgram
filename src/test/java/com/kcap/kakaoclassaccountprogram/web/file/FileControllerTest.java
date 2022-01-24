@@ -1,20 +1,21 @@
 package com.kcap.kakaoclassaccountprogram.web.file;
 
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import com.kcap.kakaoclassaccountprogram.KakaoClassAccountProgramApplication;
+import com.kcap.kakaoclassaccountprogram.domain.trsnactionHistory.*;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.hibernate.Transaction;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.web.multipart.commons.CommonsMultipartResolver;
 
 
 import java.io.File;
@@ -30,21 +31,17 @@ import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 테스트파일 데이터는 본인 기준에 맞게 변경 후 진행
  */
-@WebMvcTest(FileController.class)
+@ExtendWith(SpringExtension.class)
+@DataJpaTest
 class FileControllerTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private TransactionHistoryRepository transactionHistoryRepository;
 
     @Test
     public void 파일_업로드_테스트() throws Exception {
@@ -67,7 +64,7 @@ class FileControllerTest {
         File file = new File("src/main/resources/test");  // 테스트 파일경로
         File[] files = file.listFiles();
         MockMultipartFile mockMultipartFile = new MockMultipartFile("test", new FileInputStream(files[0]));
-        XSSFWorkbook excel = new XSSFWorkbook(mockMultipartFile.getInputStream());;
+        XSSFWorkbook excel = new XSSFWorkbook(mockMultipartFile.getInputStream());
         String sheetName = excel.getSheetName(0);
         String cellName = getCellData(excel, 0, 1);
         String accountHolder = getCellData(excel, 3, 2);
@@ -92,6 +89,9 @@ class FileControllerTest {
         File[] files = file.listFiles();
         List<MockMultipartFile> mockMultipartFiles = new ArrayList<MockMultipartFile>();
 
+        Pattern datePattern = Pattern.compile("\\d{4}.\\d{2}.\\d{2} \\d{2}:\\d{2}:\\d{2}");
+        Pattern numberPattern = Pattern.compile("[0-9]+");
+
         for (File f : files) {
             mockMultipartFiles.add(new MockMultipartFile(f.getName(), new FileInputStream(f)));
         }
@@ -104,10 +104,6 @@ class FileControllerTest {
             int lastCellNum = (int) row.getLastCellNum();
 
             List<Integer> successRow = new ArrayList<>();
-            List<Integer> failRow = new ArrayList<>();
-
-            Pattern datePattern = Pattern.compile("\\d{4}.\\d{2}.\\d{2} \\d{2}:\\d{2}:\\d{2}");
-            Pattern numberPattern = Pattern.compile("[0-9]+");
 
             for (int i = 11; i <= lastRowNum; i++) {
                 Boolean failFlag = false;
@@ -134,19 +130,96 @@ class FileControllerTest {
                             break;
                     }
                 }
-                if (failFlag) {
-                    failRow.add(i);
-                } else {
+                if (!failFlag) {
                     successRow.add(i);
                 }
 
             }
-
-            assertEquals(failRow.size(), 2);
-            assertEquals(successRow.size(), 42);
+            assertEquals(successRow.size(), 45, 43);
 
         }
     }
+
+    // TODO: 2022/01/16 excel date insert, select,
+    @Test
+    public void excel_date_insert_select() throws IOException {
+        File file = new File("src/main/resources/test");  // 테스트 파일경로
+        File[] files = file.listFiles();
+        MockMultipartFile mockMultipartFile = new MockMultipartFile("test", new FileInputStream(files[0]));
+        XSSFWorkbook excel = new XSSFWorkbook(mockMultipartFile.getInputStream());
+        XSSFSheet sheet = excel.getSheetAt(0);
+        int lastRowNum = sheet.getLastRowNum();
+
+        List<TransactionHistory> successRow = new ArrayList<>();
+
+        Pattern datePattern = Pattern.compile("\\d{4}.\\d{2}.\\d{2} \\d{2}:\\d{2}:\\d{2}");
+        Pattern numberPattern = Pattern.compile("[0-9]+");
+
+        for (int i = 11; i <= lastRowNum; i++) {
+            Boolean failFlag = false;
+            XSSFRow row = sheet.getRow(i);
+            int lastCellNum = (int) row.getLastCellNum();
+            Matcher matcher = null;
+            TransactionHistoryVO vo = new TransactionHistoryVO();
+            for (int j = 1; j <= lastCellNum; j++) {
+                XSSFCell cell = row.getCell(j);
+                switch (j) {
+                    case 1:
+                        matcher = datePattern.matcher(cell.getStringCellValue());
+                        if (!matcher.find()) {
+                            failFlag = true;
+                            break;
+                        }
+                        vo.setDate(LocalDateTime.parse(matcher.group(), DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss")));
+                        break;
+                    case 2:
+                        vo.setDivision(cell.getStringCellValue());
+                        break;
+                    case 3:
+                        matcher = numberPattern.matcher(cell.getStringCellValue().replaceAll("[^0-9]", ""));
+                        if (!matcher.find()) {
+                            failFlag = true;
+                            break;
+                        }
+                        vo.setPrice(Integer.parseInt(matcher.group()));
+                        break;
+                    case 4:
+                        matcher = numberPattern.matcher(cell.getStringCellValue().replaceAll("[^0-9]", ""));
+                        if (!matcher.find()) {
+                            failFlag = true;
+                            break;
+                        }
+                        vo.setAfterBalance(Integer.parseInt(matcher.group()));
+                        break;
+                    case 6:
+                        vo.setContents(cell.getStringCellValue());
+                        break;
+                    case 7:
+                        vo.setMemo(cell.getStringCellValue());
+                        break;
+                }
+            }
+            if (!failFlag) {
+                successRow.add(
+                        TransactionHistory.builder()
+                                .date(vo.getDate())
+                                .division(vo.getDivision())
+                                .price(vo.getPrice())
+                                .afterBalance(vo.getAfterBalance())
+                                .contents(vo.getContents())
+                                .memo(vo.getMemo())
+                                .build());
+            }
+        }
+        transactionHistoryRepository.saveAll(successRow);
+        assertEquals(transactionHistoryRepository.findAll().size(),43);
+
+    }
+
+
+
+
+    // TODO: 2022/01/16 미납내역을 이미지 or pdf 파일로 변환하여 내려받는다.
 
     private String getCellData(XSSFWorkbook excel, int row, int cell) {
         return excel.getSheetAt(0)
@@ -156,4 +229,5 @@ class FileControllerTest {
     }
 
 }
+
 
