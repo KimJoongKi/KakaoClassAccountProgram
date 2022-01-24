@@ -7,6 +7,7 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.hibernate.Transaction;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,15 +43,26 @@ class FileControllerTest {
 
     @Autowired
     private TransactionHistoryRepository transactionHistoryRepository;
+    private static File file = null;
+    private static File[] files = null;
+
+    @BeforeAll
+    public static void 사전작업() {
+        file = new File("src/main/resources/test");
+        files = file.listFiles();
+    }
 
     @Test
-    public void 파일_업로드_테스트() throws Exception {
-
-        File file = new File("src/main/resources/test");  // 테스트 파일경로
+    public void 파일_업로드_테스트() {
+          // 테스트 파일경로
         Queue<MockMultipartFile> queue = new LinkedList<MockMultipartFile>();
-        File[] files = file.listFiles();
+
         for (File file1 : files) {
-            queue.offer(new MockMultipartFile(file1.getName(), new FileInputStream(file1)));
+            try (FileInputStream fis = new FileInputStream(file1)) {
+                queue.offer(new MockMultipartFile(file1.getName(), fis));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         // 테스트 파일 명에 맞게 변경
@@ -60,22 +72,26 @@ class FileControllerTest {
     }
 
     @Test
-    public void 카카오뱅크_엑셀파일_검증_테스트() throws IOException {
-        File file = new File("src/main/resources/test");  // 테스트 파일경로
-        File[] files = file.listFiles();
-        MockMultipartFile mockMultipartFile = new MockMultipartFile("test", new FileInputStream(files[0]));
-        XSSFWorkbook excel = new XSSFWorkbook(mockMultipartFile.getInputStream());
-        String sheetName = excel.getSheetName(0);
-        String cellName = getCellData(excel, 0, 1);
-        String accountHolder = getCellData(excel, 3, 2);
-        String accountNumber = getCellData(excel, 4, 2);
-        Pattern pattern = Pattern.compile("([0-9])+");
-        Matcher matcher = pattern.matcher(accountNumber);
-        matcher.find();
+    public void 카카오뱅크_엑셀파일_검증_테스트() {
+        try (FileInputStream fis = new FileInputStream(files[0])) {
+            MockMultipartFile mockMultipartFile = new MockMultipartFile("test", fis);
 
-        assertEquals("카카오뱅크 거래내역", sheetName, cellName);
-        assertEquals("김중기", accountHolder);
-        assertEquals("1826", matcher.group());
+            XSSFWorkbook excel = new XSSFWorkbook(mockMultipartFile.getInputStream());
+            String sheetName = excel.getSheetName(0);
+            String cellName = getCellData(excel, 0, 1);
+            String accountHolder = getCellData(excel, 3, 2);
+            String accountNumber = getCellData(excel, 4, 2);
+            Pattern pattern = Pattern.compile("([0-9])+");
+            Matcher matcher = pattern.matcher(accountNumber);
+            matcher.find();
+
+            assertEquals("카카오뱅크 거래내역", sheetName, cellName);
+            assertEquals("김중기", accountHolder);
+            assertEquals("1826", matcher.group());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     @Test
@@ -85,15 +101,17 @@ class FileControllerTest {
          * 3,4열  정규식
          * todo: 패턴은 계속 만들면 자원낭비가 심하다 static으로 만들어 두었다가 사용해야한다.
          */
-        File file = new File("src/main/resources/test");  // 테스트 파일경로
-        File[] files = file.listFiles();
         List<MockMultipartFile> mockMultipartFiles = new ArrayList<MockMultipartFile>();
 
         Pattern datePattern = Pattern.compile("\\d{4}.\\d{2}.\\d{2} \\d{2}:\\d{2}:\\d{2}");
         Pattern numberPattern = Pattern.compile("[0-9]+");
 
         for (File f : files) {
-            mockMultipartFiles.add(new MockMultipartFile(f.getName(), new FileInputStream(f)));
+            try (FileInputStream fis = new FileInputStream(f)) {
+                mockMultipartFiles.add(new MockMultipartFile(f.getName(), fis));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         for (MockMultipartFile mockMultipartFile : mockMultipartFiles) {
@@ -140,84 +158,82 @@ class FileControllerTest {
         }
     }
 
-    // TODO: 2022/01/16 excel date insert, select,
     @Test
-    public void excel_date_insert_select() throws IOException {
-        File file = new File("src/main/resources/test");  // 테스트 파일경로
-        File[] files = file.listFiles();
-        MockMultipartFile mockMultipartFile = new MockMultipartFile("test", new FileInputStream(files[0]));
-        XSSFWorkbook excel = new XSSFWorkbook(mockMultipartFile.getInputStream());
-        XSSFSheet sheet = excel.getSheetAt(0);
-        int lastRowNum = sheet.getLastRowNum();
+    public void excel_date_insert_select() {
+        try (FileInputStream fis = new FileInputStream(files[0])) {
+            MockMultipartFile mockMultipartFile = new MockMultipartFile("test", fis);
+            XSSFWorkbook excel = new XSSFWorkbook(mockMultipartFile.getInputStream());
+            XSSFSheet sheet = excel.getSheetAt(0);
+            int lastRowNum = sheet.getLastRowNum();
 
-        List<TransactionHistory> successRow = new ArrayList<>();
+            List<TransactionHistory> successRow = new ArrayList<>();
 
-        Pattern datePattern = Pattern.compile("\\d{4}.\\d{2}.\\d{2} \\d{2}:\\d{2}:\\d{2}");
-        Pattern numberPattern = Pattern.compile("[0-9]+");
+            Pattern datePattern = Pattern.compile("\\d{4}.\\d{2}.\\d{2} \\d{2}:\\d{2}:\\d{2}");
+            Pattern numberPattern = Pattern.compile("[0-9]+");
 
-        for (int i = 11; i <= lastRowNum; i++) {
-            Boolean failFlag = false;
-            XSSFRow row = sheet.getRow(i);
-            int lastCellNum = (int) row.getLastCellNum();
-            Matcher matcher = null;
-            TransactionHistoryVO vo = new TransactionHistoryVO();
-            for (int j = 1; j <= lastCellNum; j++) {
-                XSSFCell cell = row.getCell(j);
-                switch (j) {
-                    case 1:
-                        matcher = datePattern.matcher(cell.getStringCellValue());
-                        if (!matcher.find()) {
-                            failFlag = true;
+            for (int i = 11; i <= lastRowNum; i++) {
+                Boolean failFlag = false;
+                XSSFRow row = sheet.getRow(i);
+                int lastCellNum = row.getLastCellNum();
+                Matcher matcher = null;
+                TransactionHistoryVO vo = new TransactionHistoryVO();
+                for (int j = 1; j <= lastCellNum; j++) {
+                    XSSFCell cell = row.getCell(j);
+                    switch (j) {
+                        case 1:
+                            matcher = datePattern.matcher(cell.getStringCellValue());
+                            if (!matcher.find()) {
+                                failFlag = true;
+                                break;
+                            }
+                            vo.setDate(LocalDateTime.parse(matcher.group(), DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss")));
                             break;
-                        }
-                        vo.setDate(LocalDateTime.parse(matcher.group(), DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss")));
-                        break;
-                    case 2:
-                        vo.setDivision(cell.getStringCellValue());
-                        break;
-                    case 3:
-                        matcher = numberPattern.matcher(cell.getStringCellValue().replaceAll("[^0-9]", ""));
-                        if (!matcher.find()) {
-                            failFlag = true;
+                        case 2:
+                            vo.setDivision(cell.getStringCellValue());
                             break;
-                        }
-                        vo.setPrice(Integer.parseInt(matcher.group()));
-                        break;
-                    case 4:
-                        matcher = numberPattern.matcher(cell.getStringCellValue().replaceAll("[^0-9]", ""));
-                        if (!matcher.find()) {
-                            failFlag = true;
+                        case 3:
+                            matcher = numberPattern.matcher(cell.getStringCellValue().replaceAll("[^0-9]", ""));
+                            if (!matcher.find()) {
+                                failFlag = true;
+                                break;
+                            }
+                            vo.setPrice(Integer.parseInt(matcher.group()));
                             break;
-                        }
-                        vo.setAfterBalance(Integer.parseInt(matcher.group()));
-                        break;
-                    case 6:
-                        vo.setContents(cell.getStringCellValue());
-                        break;
-                    case 7:
-                        vo.setMemo(cell.getStringCellValue());
-                        break;
+                        case 4:
+                            matcher = numberPattern.matcher(cell.getStringCellValue().replaceAll("[^0-9]", ""));
+                            if (!matcher.find()) {
+                                failFlag = true;
+                                break;
+                            }
+                            vo.setAfterBalance(Integer.parseInt(matcher.group()));
+                            break;
+                        case 6:
+                            vo.setContents(cell.getStringCellValue());
+                            break;
+                        case 7:
+                            vo.setMemo(cell.getStringCellValue());
+                            break;
+                    }
+                }
+                if (!failFlag) {
+                    successRow.add(
+                            TransactionHistory.builder()
+                                    .date(vo.getDate())
+                                    .division(vo.getDivision())
+                                    .price(vo.getPrice())
+                                    .afterBalance(vo.getAfterBalance())
+                                    .contents(vo.getContents())
+                                    .memo(vo.getMemo())
+                                    .build());
                 }
             }
-            if (!failFlag) {
-                successRow.add(
-                        TransactionHistory.builder()
-                                .date(vo.getDate())
-                                .division(vo.getDivision())
-                                .price(vo.getPrice())
-                                .afterBalance(vo.getAfterBalance())
-                                .contents(vo.getContents())
-                                .memo(vo.getMemo())
-                                .build());
-            }
+            transactionHistoryRepository.saveAll(successRow);
+            assertEquals(transactionHistoryRepository.findAll().size(), 43);
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        transactionHistoryRepository.saveAll(successRow);
-        assertEquals(transactionHistoryRepository.findAll().size(),43);
-
     }
-
-
-
 
     // TODO: 2022/01/16 미납내역을 이미지 or pdf 파일로 변환하여 내려받는다.
 
