@@ -228,7 +228,7 @@ class FileControllerTest {
                 }
             }
             transactionHistoryRepository.saveAll(successRow);
-            assertEquals(transactionHistoryRepository.findAll().size(), 43);
+            assertEquals(transactionHistoryRepository.findAll().size(), successRow.size());
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -236,7 +236,6 @@ class FileControllerTest {
     }
 
     // TODO: 2022/01/16 미납내역을 이미지 or pdf 파일로 변환하여 내려받는다.
-
     private String getCellData(XSSFWorkbook excel, int row, int cell) {
         return excel.getSheetAt(0)
                 .getRow(row)
