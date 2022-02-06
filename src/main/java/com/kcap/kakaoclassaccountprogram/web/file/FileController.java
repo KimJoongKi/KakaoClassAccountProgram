@@ -21,6 +21,10 @@ public class FileController {
 
     @PostMapping("/upload")
     public String upload(@RequestParam("file") MultipartFile[] files) {
-        return
+        // TODO: 2022/02/06 file upload data insert
+
+        // TODO: 2022/02/06 excel data insert (path)
+        // TODO: 2022/02/06 excel etc data insert
+        return "redirect:/";
     }
 }
