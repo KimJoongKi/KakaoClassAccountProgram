@@ -7,8 +7,8 @@
 <body>
 <div class="container">
     <div th:replace="fragments/bodyHeader :: bodyHeader" />
-    <form action="/file/upload" enctype="multipart/form-data" method="post">
-        <input type="file" name="file" multiple="multiple">
+    <form th:action method="post" enctype="multipart/form-data">
+        <input type="file" name="uploadFiles" multiple="multiple">
         <button type="submit" class="btn btn-primary">등록</button>
     </form>
     <div th:replace="fragments/footer :: footer" />
