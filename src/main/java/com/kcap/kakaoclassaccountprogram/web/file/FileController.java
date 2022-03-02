@@ -4,6 +4,9 @@ import com.kcap.kakaoclassaccountprogram.web.file.form.FileForm;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.compressors.FileNameUtil;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
@@ -11,6 +14,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @Slf4j
 @Controller
@@ -32,21 +37,28 @@ public class FileController {
     }
 
     @PostMapping("/upload")
-    public String upload(@ModelAttribute("file") FileForm form, BindingResult bindingResult) {
+    public String upload(@ModelAttribute("file") FileForm form, BindingResult bindingResult) throws IOException {
 
-        // TODO: 2022/02/22 확장자가 다를 때 반환하는 부분 작성
         for (MultipartFile uploadFile : form.getUploadFiles()) {
             String extension = FilenameUtils.getExtension(uploadFile.getOriginalFilename());
             if (!messageSource.getMessage("xlsx", null, null).equals(extension)) {
-                bindingResult.reject("fileExtention", null);
+                bindingResult.reject("xlsxExtention", null);
+                return "file/upload";
             }
         }
 
-        if (bindingResult.hasErrors()) {
-            log.info("errors={}", bindingResult);
-            return "file/upload";
+        for (MultipartFile uploadFile : form.getUploadFiles()) {
+            XSSFWorkbook excel = new XSSFWorkbook(uploadFile.getInputStream());
+            String sheetName = excel.getSheetName(0);
+            XSSFRow row = excel.getSheetAt(0).getRow(0);
+            XSSFCell cell = row.getCell(1);
+
+            if (!(sheetName.equals("카카오뱅크 거래내역") && cell.toString().equals("카카오뱅크 거래내역"))) {
+                bindingResult.reject("kakaoExcelMessage", null);
+                return "file/upload";
+            }
         }
-        // TODO: 2022/02/22 확장자 통과 후 엑셀의 형식이 다를 때 반환하는 부분 작성 
+
         // TODO: 2022/02/06 file upload data insert
         // TODO: 2022/02/06 excel data insert (path)
         return "file/upload";
