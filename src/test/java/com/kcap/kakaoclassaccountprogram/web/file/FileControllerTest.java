@@ -160,7 +160,7 @@ class FileControllerTest {
 
     @Test
     public void excel_date_insert_select() {
-        try (FileInputStream fis = new FileInputStream(files[0])) {
+        /*try (FileInputStream fis = new FileInputStream(files[0])) {
             MockMultipartFile mockMultipartFile = new MockMultipartFile("test", fis);
             XSSFWorkbook excel = new XSSFWorkbook(mockMultipartFile.getInputStream());
             XSSFSheet sheet = excel.getSheetAt(0);
@@ -232,7 +232,7 @@ class FileControllerTest {
 
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        } */
     }
 
     // TODO: 2022/01/16 미납내역을 이미지 or pdf 파일로 변환하여 내려받는다.

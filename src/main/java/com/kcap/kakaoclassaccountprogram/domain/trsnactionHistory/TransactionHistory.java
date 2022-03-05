@@ -7,13 +7,13 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.IdClass;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 @IdClass(TransactionHistoryId.class)
 @Getter
 @NoArgsConstructor
-@AllArgsConstructor
 @Entity
-@Builder
 @ToString
 public class TransactionHistory {
 
@@ -25,5 +25,19 @@ public class TransactionHistory {
     private int price;
     private int afterBalance;
     private String memo;
+    private boolean normal;
+    private Long fileUploadId;
+
+    @Builder
+    public TransactionHistory(Map<String, Object> map) {
+        this.date = LocalDateTime.parse(map.get("date").toString(), DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss"));
+        this.contents = map.get("contents").toString();
+        this.division = map.get("division").toString();
+        this.price = Integer.parseInt(map.get("price").toString());
+        this.afterBalance = Integer.parseInt(map.get("afterBalance").toString());
+        this.memo = map.get("memo").toString();
+        this.normal = (boolean) map.get("normal");
+        this.fileUploadId = Long.parseLong(map.get("fileUploadId").toString());
+    }
 
 }

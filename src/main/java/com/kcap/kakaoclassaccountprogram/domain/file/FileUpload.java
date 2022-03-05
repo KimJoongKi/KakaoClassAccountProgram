@@ -3,6 +3,7 @@ package com.kcap.kakaoclassaccountprogram.domain.file;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -15,7 +16,7 @@ import java.util.Map;
 @Entity
 public class FileUpload {
 
-    @Id
+    @Id @DateTimeFormat(pattern = "yyyy년 MM월 dd일 HH시 mm분 ss초")
     @GeneratedValue
     private Long id;
     private String filename;
@@ -24,7 +25,7 @@ public class FileUpload {
     @Builder
     public FileUpload(Map<String, Object> map) {
         this.filename = map.get("filename").toString();
-        this.uploadDateTime = (LocalDateTime) map.get("uploadDataTime");
+        this.uploadDateTime = (LocalDateTime) map.get("uploadDateTime");
     }
 
 }
