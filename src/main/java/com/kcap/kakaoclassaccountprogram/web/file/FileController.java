@@ -1,6 +1,9 @@
 package com.kcap.kakaoclassaccountprogram.web.file;
 
+import com.kcap.kakaoclassaccountprogram.service.file.FileService;
+import com.kcap.kakaoclassaccountprogram.web.file.dto.FileDto;
 import com.kcap.kakaoclassaccountprogram.web.file.form.FileForm;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.compressors.FileNameUtil;
 import org.apache.commons.io.FilenameUtils;
@@ -16,14 +19,18 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Controller
+@RequiredArgsConstructor
 @RequestMapping("/file")
 public class FileController {
 
     @Autowired
     MessageSource messageSource;
+
+    private final FileService fileService;
 
     @RequestMapping("/test")
     @ResponseBody
@@ -59,8 +66,9 @@ public class FileController {
             }
         }
 
-        // TODO: 2022/02/06 file upload data insert
-        // TODO: 2022/02/06 excel data insert (path)
+        FileDto fileDto = FileDto.builder().form(form).build();
+        fileService.insertExcelData(fileDto);
+
         return "file/upload";
     }
 }
