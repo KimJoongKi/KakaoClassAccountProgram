@@ -8,13 +8,13 @@
         모임통장 입출금 내역
     </div>
     <div>
-        <!--form role="form" th:object="${form}" action="/fee/list" method="post">
+        <form role="form" th:object="${form}" action="/transactionhistory" method="post">
             <div class="row g-3">
                 <div class="col">
-                    <input class="form-control" type="date" th:field="*{startDate}">
+                    <input class="form-control" type="date" th:field="*{startDateTime}">
                 </div>
                 <div class="col">
-                    <input class="form-control" type="date" th:field="*{endDate}">
+                    <input class="form-control" type="date" th:field="*{endDateTime}">
                 </div>
                 <div class="col">
                     <input type="text" class="form-control" placeholder="내용" th:field="*{contents}">
@@ -23,7 +23,7 @@
                     <button type="submit" class="btn btn-primary">검색</button>
                 </div>
             </div>
-        </form-->
+        </form>
         <table class="table table-striped">
             <thead>
             <tr>
